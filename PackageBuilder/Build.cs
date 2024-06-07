@@ -59,7 +59,7 @@ namespace VRC.PackageManagement.Automation
         
         // assumes that "template-package" repo is checked out in sibling dir to this repo, can be overridden
         [Parameter("Path to Target Package")] 
-        AbsolutePath LocalTestPackagesPath => RootDirectory.Parent / "template-package"  / "Packages";
+        AbsolutePath LocalTestPackagesPath => RootDirectory.Parent / "MUdons-Listing"  / "Packages";
         
         AbsolutePath PackageListingSourcePath => PackageListingSourceFolder / PackageListingSourceFilename;
         AbsolutePath WebPageSourcePath => PackageListingSourceFolder / "Website";

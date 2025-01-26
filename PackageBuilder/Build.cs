@@ -16,6 +16,7 @@ using Octokit;
 using VRC.PackageManagement.Core.Types.Packages;
 using ProductHeaderValue = Octokit.ProductHeaderValue;
 using ListingSource = VRC.PackageManagement.Automation.Multi.ListingSource;
+using VPMVersion = VRC.PackageManagement.Core.Types.VPMVersion.Version;
 
 namespace VRC.PackageManagement.Automation
 {
@@ -53,13 +54,22 @@ namespace VRC.PackageManagement.Automation
             ? RootDirectory.Parent
             : RootDirectory.Parent / "template-package-listing";
 
+        private string _currentListingUrl;
         [Parameter("Path to existing index.json file, typically https://{owner}.github.io/{repo}/index.json")]
-        string CurrentListingUrl =>
-            $"https://{GitHubActions.RepositoryOwner}.github.io/{GitHubActions.Repository.Split('/')[1]}/{PackageListingPublishFilename}";
+        public string CurrentListingUrl
+        {
+            get => _currentListingUrl ?? 
+                $"https://{GitHubActions.RepositoryOwner}.github.io/{GitHubActions.Repository.Split('/')[1]}/{PackageListingPublishFilename}";
+
+            set => _currentListingUrl = value;
+        }
         
         // assumes that "template-package" repo is checked out in sibling dir to this repo, can be overridden
         [Parameter("Path to Target Package")] 
-        AbsolutePath LocalTestPackagesPath => RootDirectory.Parent / "Woodon" / "Packages";
+        AbsolutePath LocalTestPackagesPath => RootDirectory.Parent / "Woodon"  / "Packages";
+
+        [Parameter("Suffix to append to the listing package name and ID")]
+        string PackageListingSuffix = "Listing";
         
         AbsolutePath PackageListingSourcePath => PackageListingSourceFolder / PackageListingSourceFilename;
         AbsolutePath WebPageSourcePath => PackageListingSourceFolder / "Website";
@@ -84,8 +94,12 @@ namespace VRC.PackageManagement.Automation
         {
             var result = new ListingSource()
             {
-                name = $"{manifest.displayName} Listing",
-                id = $"{manifest.name}.listing",
+                name = !string.IsNullOrWhiteSpace(PackageListingSuffix)
+                    ? $"{manifest.displayName} {PackageListingSuffix}"
+                    : $"{manifest.displayName}",
+                id = !string.IsNullOrWhiteSpace(PackageListingSuffix)
+                    ? $"{manifest.name}.{PackageListingSuffix.ToLower()}"
+                    : $"{manifest.name}",
                 author = new VRC.PackageManagement.Automation.Multi.Author()
                 {
                     name = manifest.author.name ?? "",
@@ -234,7 +248,7 @@ namespace VRC.PackageManagement.Automation
                 
                 Serilog.Log.Information($"Made listingInfo {JsonConvert.SerializeObject(listingInfo, JsonWriteOptions)}");
 
-                var latestPackages = packages.OrderByDescending(p => p.Version).DistinctBy(p => p.Id).ToList();
+                var latestPackages = packages.OrderByDescending(p => new VPMVersion(p.Version, true)).DistinctBy(p => p.Id).ToList();
                 Serilog.Log.Information($"LatestPackages: {JsonConvert.SerializeObject(latestPackages, JsonWriteOptions)}");
                 var formattedPackages = latestPackages.ConvertAll(p => new {
                     Name = p.Id,
